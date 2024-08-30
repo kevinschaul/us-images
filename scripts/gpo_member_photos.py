@@ -54,7 +54,12 @@ def get_members_pictorial(br, congress_number):
     response = br.get(
         f"https://pictorialapi.gpo.gov/api/GuideMember/GetMembers/{congress_number}"
     ).json()
-    return response["memberCollection"]
+    return [
+        member
+        for member in response["memberCollection"]
+        if member["memberType"] in ("Senator", "Representative")
+        and member["name"] != "Vacant, Vacant"
+    ]
 
 
 def get_legislators_current(br, include_historical=False):
@@ -70,7 +75,7 @@ def get_legislators_current(br, include_historical=False):
         historical = br.get(
             "https://theunitedstates.io/congress-legislators/legislators-historical.json"
         ).json()
-        legislators.append(historical)
+        legislators += historical
     return legislators
 
 
@@ -83,10 +88,13 @@ def match_bioguide_id(member_pictorial, legislators_current):
     """
     name = member_pictorial["name"]
 
+    # Map common nicknames from pictorial to legislators_current
     common_nicknames = {
         "Nick": "Nicolas",
         "Daniel": "Dan",
         "Mike": "Michael",
+        "Richard": "Rich",
+        "Christopher": "Chris",
     }
 
     matches = []
@@ -102,6 +110,12 @@ def match_bioguide_id(member_pictorial, legislators_current):
                 name_matches = True
             # Sometimes the nickname is encoded in the first name
             elif member_pictorial["firstName"] in m["name"]["first"]:
+                name_matches = True
+            # Sometimes the nickname is encoded in the middle name
+            elif (
+                "middle" in m["name"]
+                and member_pictorial["firstName"] in m["name"]["middle"]
+            ):
                 name_matches = True
             # Sometimes the nickname is not encoded
             elif (
@@ -232,28 +246,33 @@ if __name__ == "__main__":
     br = mechanicalsoup.Browser()
     br.set_user_agent(USER_AGENT)
 
-    legislators_current = get_legislators_current(br, args.congress < CURRENT_CONGRESS)
+    legislators_current = get_legislators_current(br, True)
     members_pictorial = get_members_pictorial(br, args.congress)
 
-    no_bioguide_match = []
     photo_list = []
+    errors = []
     for m in members_pictorial:
-        try:
-            photo_list.append(
-                (match_bioguide_id(m, legislators_current), m["imageUrl"])
-            )
-        except ValueError as e:
-            print(e)
-            no_bioguide_match.append(m)
+        if "nophotoimage.jpg" in m["imageUrl"]:
+            name = m["name"]
+            print(f"No photo available for {name}")
+            errors.append(["No photo available", m])
+        else:
+            try:
+                photo_list.append(
+                    (match_bioguide_id(m, legislators_current), m["imageUrl"])
+                )
+            except ValueError as e:
+                print(e)
+                errors.append(["No Bioguide ID match", m])
 
     number = download_photos(br, photo_list, args.outdir, args.delay)
 
     if number:
         resize_photos()
 
-    if len(no_bioguide_match):
-        print(f"Missing bioguide matches for {len(no_bioguide_match)}, wrote to missing-bioguide-match.json")
-        with open("missing-bioguide-match.json", "w") as f:
-            json.dump(no_bioguide_match, f, indent=2)
+    if len(errors):
+        print(f"{len(errors)} legislators had errors. Details wrote to errors.json")
+        with open("errors.json", "w") as f:
+            json.dump(errors, f, indent=2)
 
 # End of file

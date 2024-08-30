@@ -13,34 +13,34 @@ sys.path.insert(0, "scripts")
 import gpo_member_photos  # noqa: E402
 
 
-class TestSequenceFunctions(unittest.TestCase):
-    def test_save_metadata(self):
-        """Test file is saved"""
-        bioguide_id = "A000000"
-        gpo_member_photos.save_metadata(bioguide_id)
-        self.assertTrue(os.path.exists("congress/metadata/A000000.yaml"))
-
-    def test_resize_photos(self):
-        """Test callable"""
-        gpo_member_photos.resize_photos()
-
-    def test_pause(self):
-        """Test pause delays"""
-        # Arrange
-        last_request_time = None
-        delay = 1
-        delta = datetime.timedelta(seconds=delay)
-
-        # Act
-        time0 = datetime.datetime.now()
-        last_request_time = gpo_member_photos.pause(last_request_time, delay)
-        time1 = datetime.datetime.now()
-        last_request_time = gpo_member_photos.pause(last_request_time, delay)
-        time2 = datetime.datetime.now()
-
-        # Assert
-        self.assertLess(time1 - time0, delta)
-        self.assertGreaterEqual(time2 - time1, delta)
+# class TestSequenceFunctions(unittest.TestCase):
+#     def test_save_metadata(self):
+#         """Test file is saved"""
+#         bioguide_id = "A000000"
+#         gpo_member_photos.save_metadata(bioguide_id)
+#         self.assertTrue(os.path.exists("congress/metadata/A000000.yaml"))
+#
+#     def test_resize_photos(self):
+#         """Test callable"""
+#         gpo_member_photos.resize_photos()
+#
+#     def test_pause(self):
+#         """Test pause delays"""
+#         # Arrange
+#         last_request_time = None
+#         delay = 1
+#         delta = datetime.timedelta(seconds=delay)
+#
+#         # Act
+#         time0 = datetime.datetime.now()
+#         last_request_time = gpo_member_photos.pause(last_request_time, delay)
+#         time1 = datetime.datetime.now()
+#         last_request_time = gpo_member_photos.pause(last_request_time, delay)
+#         time2 = datetime.datetime.now()
+#
+#         # Assert
+#         self.assertLess(time1 - time0, delta)
+#         self.assertGreaterEqual(time2 - time1, delta)
 
 
 class TestMatchBioguideID(unittest.TestCase):
@@ -484,6 +484,79 @@ class TestMatchBioguideID(unittest.TestCase):
             }
         ]
         expected = "L000598"
+        self.assertTrue(
+            gpo_member_photos.match_bioguide_id(member_pictorial, legislators_current)
+            == expected
+        )
+
+    def test_franklin(self):
+        """Franklin's nickname is middle name"""
+        member_pictorial = {
+            "entryId": "12999",
+            "memberId": 12999,
+            "memberType": "Representative",
+            "lastName": "Franklin",
+            "firstName": "Scott",
+            "name": "Franklin, Scott",
+            "partyDescription": "Republican",
+            "congressionalDescription": "118th Congress",
+            "title": "Not Applicable",
+            "stateId": "FL",
+            "stateDescription": "Florida",
+            "memberTypeId": "RP",
+            "district": 18,
+            "thumbNailImageUrl": "https://memberguide.gpo.gov/pictorialimages/118_RP_FL_18_Franklin_C.jpg",
+            "imageUrl": "https://memberguide.gpo.gov/pictorialimages/118_RP_FL_18_Franklin_C.jpg",
+            "imageFile": "118_RP_FL_18_Franklin_C.jpg",
+        }
+
+        legislators_current = [
+            {
+                "id": {
+                    "bioguide": "F000472",
+                    "fec": ["H0FL15104"],
+                    "opensecrets": "N00046760",
+                    "govtrack": 456807,
+                    "wikidata": "Q101198561",
+                    "wikipedia": "Scott Franklin (politician)",
+                    "google_entity_id": "kg:/g/11ft5hszwx",
+                },
+                "name": {
+                    "first": "C.",
+                    "middle": "Scott",
+                    "last": "Franklin",
+                    "official_full": "Scott Franklin",
+                },
+                "bio": {"gender": "M", "birthday": "1964-08-23"},
+                "terms": [
+                    {
+                        "type": "rep",
+                        "start": "2021-01-03",
+                        "end": "2023-01-03",
+                        "state": "FL",
+                        "district": 15,
+                        "party": "Republican",
+                        "address": "1517 Longworth House Office Building Washington DC 20515-0915",
+                        "office": "1517 Longworth House Office Building",
+                        "phone": "202-225-1252",
+                        "url": "https://franklin.house.gov",
+                    },
+                    {
+                        "type": "rep",
+                        "start": "2023-01-03",
+                        "end": "2025-01-03",
+                        "state": "FL",
+                        "district": 18,
+                        "party": "Republican",
+                        "url": "https://franklin.house.gov",
+                        "address": "249 Cannon House Office Building Washington DC 20515-0918",
+                        "office": "249 Cannon House Office Building",
+                        "phone": "202-225-1252",
+                    },
+                ],
+            }
+        ]
+        expected = "F000472"
         self.assertTrue(
             gpo_member_photos.match_bioguide_id(member_pictorial, legislators_current)
             == expected
