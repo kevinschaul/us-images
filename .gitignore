@@ -73,3 +73,6 @@ congress/metadata/A000000.yaml
 # Thumbnail files
 .DS_Store
 thumbs.db
+
+# Node
+node_modules

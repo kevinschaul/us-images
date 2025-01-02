@@ -1,0 +1,19 @@
+{
+  "name": "images",
+  "version": "0.0.0",
+  "description": "Public domain photos of Members of the United States Congress",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/unitedstates/images.git"
+  },
+  "license": "CC0-1.0",
+  "bugs": {
+    "url": "https://github.com/unitedstates/images/issues"
+  },
+  "homepage": "https://github.com/unitedstates/images#readme",
+  "dependencies": {
+    "commander": "^13",
+    "puppeteer": "^23"
+  }
+}
