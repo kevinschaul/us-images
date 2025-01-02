@@ -74,3 +74,5 @@ congress/metadata/A000000.yaml
 # Thumbnail files
 .DS_Store
 thumbs.db
+
+errors.json

@@ -79,80 +79,6 @@ def get_legislators_current(br, include_historical=False):
     return legislators
 
 
-def match_bioguide_id(member_pictorial, legislators_current):
-    """
-    Attempt to find the corresponding Bioguide ID for the given member.
-
-    There are many odd cases -- see tests/test_gpo_member_photos.py for
-    examples.
-    """
-    name = member_pictorial["name"]
-
-    # Map common nicknames from pictorial to legislators_current
-    common_nicknames = {
-        "Nick": "Nicolas",
-        "Daniel": "Dan",
-        "Mike": "Michael",
-        "Richard": "Rich",
-        "Christopher": "Chris",
-    }
-
-    matches = []
-    for m in legislators_current:
-        # First check whether the name matches
-        name_matches = False
-        m_name_last = m["name"]["last"].replace(" ", "")
-        if m_name_last == member_pictorial["lastName"]:
-            if m["name"]["first"] == member_pictorial["firstName"] or (
-                "nickname" in m["name"]
-                and m["name"]["nickname"] == member_pictorial["firstName"]
-            ):
-                name_matches = True
-            # Sometimes the nickname is encoded in the first name
-            elif member_pictorial["firstName"] in m["name"]["first"]:
-                name_matches = True
-            # Sometimes the nickname is encoded in the middle name
-            elif (
-                "middle" in m["name"]
-                and member_pictorial["firstName"] in m["name"]["middle"]
-            ):
-                name_matches = True
-            # Sometimes the nickname is not encoded
-            elif (
-                member_pictorial["firstName"] in common_nicknames
-                and common_nicknames[member_pictorial["firstName"]]
-                == m["name"]["first"]
-            ):
-                name_matches = True
-
-        # The GPO has some first and last names swapped, so check those too
-        if not name_matches and m["name"]["first"] == member_pictorial["lastName"]:
-            if m_name_last == member_pictorial["firstName"] or (
-                "nickname" in m["name"]
-                and m["name"]["nickname"] == member_pictorial["firstName"]
-            ):
-                name_matches = True
-
-        # If the name matches, check the office and state
-        # Note: Assumes we're matching against most recent term
-        if name_matches:
-            most_recent_term = m["terms"][-1]
-            mType = "sen" if member_pictorial["memberType"] == "Senator" else "rep"
-            if (
-                most_recent_term["state"] == member_pictorial["stateId"]
-                and most_recent_term["type"] == mType
-            ):
-                matches.append(m)
-
-    if len(matches) == 1:
-        return matches[0]["id"]["bioguide"]
-    else:
-        if len(matches):
-            raise ValueError(f"Multiple Bioguide ID matches found for {name}")
-        else:
-            raise ValueError(f"No Bioguide ID match found for {name}")
-
-
 def save_metadata(bioguide_id):
     outdir = "congress/metadata"
     if not os.path.exists(outdir):
@@ -246,24 +172,35 @@ if __name__ == "__main__":
     br = mechanicalsoup.Browser()
     br.set_user_agent(USER_AGENT)
 
-    legislators_current = get_legislators_current(br, True)
+    legislators_current = get_legislators_current(br, args.congress != CURRENT_CONGRESS)
     members_pictorial = get_members_pictorial(br, args.congress)
 
     photo_list = []
     errors = []
-    for m in members_pictorial:
-        if "nophotoimage.jpg" in m["imageUrl"]:
-            name = m["name"]
-            print(f"No photo available for {name}")
-            errors.append(["No photo available", m])
-        else:
+    for m in legislators_current:
+        image_found = False
+        if "pictorial" in m["id"]:
             try:
-                photo_list.append(
-                    (match_bioguide_id(m, legislators_current), m["imageUrl"])
+                pictorial_data = next(
+                    (
+                        p
+                        for p in members_pictorial
+                        if p["memberId"] == m["id"]["pictorial"]
+                    )
                 )
-            except ValueError as e:
-                print(e)
-                errors.append(["No Bioguide ID match", m])
+
+                if "nophotoimage.jpg" in pictorial_data["imageUrl"]:
+                    pass
+                else:
+                    image_found = True
+                    photo_list.append((m["id"]["bioguide"], pictorial_data["imageUrl"]))
+            except StopIteration as e:
+                # No matching result from pictorial API
+                pass
+
+        if not image_found:
+            print(f"No photo available for {m['id']['bioguide']}")
+            errors.append(["No photo available", m["id"]["bioguide"], m["name"]])
 
     number = download_photos(br, photo_list, args.outdir, args.delay)
 
