@@ -8,10 +8,8 @@ import datetime
 import json
 import os
 import re
-import sys
 import time
 from urllib.error import HTTPError
-from urllib.parse import urlencode
 from urllib.request import urlretrieve
 
 # pip install -r requirements.txt
@@ -73,7 +71,8 @@ def get_legislators_current(br, include_historical=False):
     ).json()
     if include_historical:
         historical = br.get(
-            "https://theunitedstates.io/congress-legislators/legislators-historical.json"
+            "https://theunitedstates.io/congress-legislators/"
+            "legislators-historical.json"
         ).json()
         legislators += historical
     return legislators
@@ -182,11 +181,9 @@ if __name__ == "__main__":
         if "pictorial" in m["id"]:
             try:
                 pictorial_data = next(
-                    (
-                        p
-                        for p in members_pictorial
-                        if p["memberId"] == m["id"]["pictorial"]
-                    )
+                    p
+                    for p in members_pictorial
+                    if p["memberId"] == m["id"]["pictorial"]
                 )
 
                 if "nophotoimage.jpg" in pictorial_data["imageUrl"]:
@@ -194,7 +191,7 @@ if __name__ == "__main__":
                 else:
                     image_found = True
                     photo_list.append((m["id"]["bioguide"], pictorial_data["imageUrl"]))
-            except StopIteration as e:
+            except StopIteration:
                 # No matching result from pictorial API
                 pass
 
